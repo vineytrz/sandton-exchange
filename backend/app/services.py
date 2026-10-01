@@ -8,6 +8,8 @@ from app.matching_engine import OrderStatus as EngineStatus
 from app.matching_engine import match_order
 from app.models import (
     Account,
+    AffirmationStatus,
+    AuditEvent,
     Instrument,
     Order,
     OrderSide,
@@ -82,6 +84,7 @@ def run_matching(db: Session, incoming: Order, actor: str) -> list[Trade]:
             instrument_id=incoming.instrument_id,
             qty=trade_result.qty,
             price=trade_result.price,
+            affirmation_status=AffirmationStatus.PENDING_AFFIRMATION,
         )
         db.add(trade)
         db.flush()
@@ -125,11 +128,30 @@ def run_matching(db: Session, incoming: Order, actor: str) -> list[Trade]:
     return trades
 
 
+def affirm_trade(db: Session, trade: Trade, actor: str) -> None:
+    if trade.affirmation_status == AffirmationStatus.AFFIRMED:
+        raise ValueError("Trade already affirmed")
+    trade.affirmation_status = AffirmationStatus.AFFIRMED
+    trade.affirmed_by = actor
+    trade.affirmed_at = datetime.utcnow()
+    log_event(
+        db,
+        "trade",
+        trade.id,
+        "trade_affirmed",
+        actor,
+        {"buy_order_id": trade.buy_order_id, "sell_order_id": trade.sell_order_id},
+    )
+
+
 def create_settlement_batch(db: Session, actor: str) -> list[Settlement]:
     unsettled_trades = (
         db.query(Trade)
         .outerjoin(Settlement)
-        .filter(Settlement.id.is_(None))
+        .filter(
+            Settlement.id.is_(None),
+            Trade.affirmation_status == AffirmationStatus.AFFIRMED,
+        )
         .all()
     )
 
@@ -242,4 +264,37 @@ def get_portfolio(db: Session, account_id: int) -> dict:
         "account_name": account.name,
         "cash_balance": round(account.cash_balance, 2),
         "positions": position_list,
+    }
+
+
+def is_market_open() -> bool:
+    now = datetime.utcnow()
+    # SAST = UTC+2; market hours 09:00–17:00 SAST → 07:00–15:00 UTC, weekdays
+    if now.weekday() >= 5:
+        return False
+    return 7 <= now.hour < 15
+
+
+def get_ops_dashboard(db: Session) -> dict:
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    return {
+        "market_open": is_market_open(),
+        "open_orders": db.query(Order)
+        .filter(Order.status.in_([OrderStatus.OPEN, OrderStatus.PARTIAL]))
+        .count(),
+        "pending_affirmations": db.query(Trade)
+        .filter(Trade.affirmation_status == AffirmationStatus.PENDING_AFFIRMATION)
+        .count(),
+        "pending_settlements": db.query(Settlement)
+        .filter(Settlement.status == SettlementStatus.PENDING)
+        .count(),
+        "todays_trades": db.query(Trade)
+        .filter(Trade.traded_at >= today_start)
+        .count(),
+        "confirmed_settlements": db.query(Settlement)
+        .filter(Settlement.status == SettlementStatus.CONFIRMED)
+        .count(),
+        "audit_events_today": db.query(AuditEvent)
+        .filter(AuditEvent.created_at >= today_start)
+        .count(),
     }

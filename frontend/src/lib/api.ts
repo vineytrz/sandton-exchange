@@ -9,6 +9,7 @@ export type OrderStatus =
   | "FILLED"
   | "CANCELLED"
   | "REJECTED";
+export type AffirmationStatus = "PENDING_AFFIRMATION" | "AFFIRMED";
 
 export interface Account {
   id: number;
@@ -47,6 +48,9 @@ export interface Trade {
   qty: number;
   price: number;
   traded_at: string;
+  affirmation_status: AffirmationStatus;
+  affirmed_by: string | null;
+  affirmed_at: string | null;
   ticker?: string;
 }
 
@@ -85,6 +89,26 @@ export interface Settlement {
   confirmed_by: string | null;
   confirmed_at: string | null;
   trade?: Trade;
+}
+
+export interface AuditEvent {
+  id: number;
+  entity_type: string;
+  entity_id: number;
+  action: string;
+  actor: string;
+  payload_json: string;
+  created_at: string;
+}
+
+export interface OpsDashboard {
+  market_open: boolean;
+  open_orders: number;
+  pending_affirmations: number;
+  pending_settlements: number;
+  todays_trades: number;
+  confirmed_settlements: number;
+  audit_events_today: number;
 }
 
 export interface OrderCreate {
@@ -131,6 +155,10 @@ export const api = {
   cancelOrder: (id: number) =>
     request<Order>(`/api/v1/orders/${id}/cancel`, { method: "POST" }),
   getTrades: () => request<Trade[]>("/api/v1/trades"),
+  getPendingAffirmations: () =>
+    request<Trade[]>("/api/v1/trades/pending-affirmation"),
+  affirmTrade: (id: number) =>
+    request<Trade>(`/api/v1/trades/${id}/affirm`, { method: "POST" }),
   getPortfolio: (accountId: number) =>
     request<Portfolio>(`/api/v1/accounts/${accountId}/portfolio`),
   getPendingSettlements: () =>
@@ -141,4 +169,30 @@ export const api = {
     request<Settlement>(`/api/v1/settlement/${id}/confirm`, {
       method: "POST",
     }),
+  confirmSettlementsBulk: (settlementIds: number[]) =>
+    request<Settlement[]>("/api/v1/settlement/confirm-bulk", {
+      method: "POST",
+      body: JSON.stringify({ settlement_ids: settlementIds }),
+    }),
+  getAuditEvents: (params?: {
+    entity_type?: string;
+    entity_id?: number;
+    limit?: number;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.entity_type) q.set("entity_type", params.entity_type);
+    if (params?.entity_id != null)
+      q.set("entity_id", String(params.entity_id));
+    if (params?.limit) q.set("limit", String(params.limit));
+    const qs = q.toString();
+    return request<AuditEvent[]>(`/api/v1/audit${qs ? `?${qs}` : ""}`);
+  },
+  getOpsDashboard: () => request<OpsDashboard>("/api/v1/ops/dashboard"),
 };
+
+export function formatZAR(amount: number): string {
+  return `R\u00a0${amount.toLocaleString("en-ZA", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}

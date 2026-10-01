@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.models import OrderSide, OrderStatus, SettlementStatus
+from app.models import AffirmationStatus, OrderSide, OrderStatus, SettlementStatus
 
 
 class AccountOut(BaseModel):
@@ -56,6 +56,9 @@ class TradeOut(BaseModel):
     qty: int
     price: float
     traded_at: datetime
+    affirmation_status: AffirmationStatus
+    affirmed_by: str | None = None
+    affirmed_at: datetime | None = None
     ticker: str | None = None
 
     model_config = {"from_attributes": True}
@@ -98,3 +101,35 @@ class OrderBookOut(BaseModel):
     ticker: str
     bids: list[OrderBookLevel]
     asks: list[OrderBookLevel]
+
+
+class AuditEventOut(BaseModel):
+    id: int
+    entity_type: str
+    entity_id: int
+    action: str
+    actor: str
+    payload_json: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class BulkConfirmRequest(BaseModel):
+    settlement_ids: list[int] = Field(min_length=1)
+
+
+class OpsDashboardOut(BaseModel):
+    market_open: bool
+    open_orders: int
+    pending_affirmations: int
+    pending_settlements: int
+    todays_trades: int
+    confirmed_settlements: int
+    audit_events_today: int
+
+
+class InstrumentTickerOut(BaseModel):
+    ticker: str
+    last_price: float
+    currency: str

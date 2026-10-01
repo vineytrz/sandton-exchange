@@ -39,8 +39,9 @@ The selected role is sent as the `X-Actor-Role` header on every API request.
 
 1. **Place order** → validate → enter order book
 2. **Match** — price-time priority matching engine creates trades
-3. **T+3 settlement batch** — Ops runs batch to create pending settlements
-4. **Manual confirm** — Ops confirms each settlement; account balances update
+3. **Ops affirmation** — manual T+0 trade confirmation (new gate)
+4. **T+3 settlement batch** — Ops runs batch on affirmed trades only
+5. **Manual confirm** — Ops confirms each settlement (bulk supported); balances update
 
 Cash and positions reflect **confirmed settlements only** — not instant post-trade updates.
 
@@ -58,9 +59,14 @@ Base URL: `http://localhost:8000/api/v1`
 | `GET /orders/book/{instrument_id}` | Aggregated order book |
 | `POST /orders/{id}/cancel` | Cancel open order |
 | `GET /trades` | Trade blotter |
+| `GET /trades/pending-affirmation` | Trades awaiting Ops affirmation |
+| `POST /trades/{id}/affirm` | Affirm trade (Ops) |
 | `GET /settlement/pending` | Pending settlements |
-| `POST /settlement/batch` | Create T+3 batch (Ops) |
+| `POST /settlement/batch` | Create T+3 batch (Ops, affirmed trades only) |
 | `POST /settlement/{id}/confirm` | Confirm settlement (Ops) |
+| `POST /settlement/confirm-bulk` | Confirm multiple settlements (Ops) |
+| `GET /audit` | Append-only audit trail |
+| `GET /ops/dashboard` | Ops queue summary stats |
 
 ## Audit trail (future-phase seam)
 

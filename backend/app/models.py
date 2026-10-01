@@ -37,6 +37,11 @@ class SettlementStatus(str, enum.Enum):
     FAILED = "FAILED"
 
 
+class AffirmationStatus(str, enum.Enum):
+    PENDING_AFFIRMATION = "PENDING_AFFIRMATION"
+    AFFIRMED = "AFFIRMED"
+
+
 class Account(Base):
     __tablename__ = "accounts"
 
@@ -106,6 +111,11 @@ class Trade(Base):
     traded_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )
+    affirmation_status: Mapped[AffirmationStatus] = mapped_column(
+        Enum(AffirmationStatus), default=AffirmationStatus.PENDING_AFFIRMATION
+    )
+    affirmed_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    affirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     buy_order: Mapped["Order"] = relationship(foreign_keys=[buy_order_id])
     sell_order: Mapped["Order"] = relationship(foreign_keys=[sell_order_id])

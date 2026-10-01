@@ -21,13 +21,14 @@ export default function TradeBlotter() {
               <th>Price (ZAR)</th>
               <th>Buy Order</th>
               <th>Sell Order</th>
+              <th>Affirmation</th>
               <th>Traded At</th>
             </tr>
           </thead>
           <tbody>
             {trades.length === 0 ? (
               <tr>
-                <td colSpan={7}>No trades yet</td>
+                <td colSpan={8}>No trades yet</td>
               </tr>
             ) : (
               trades.map((t) => (
@@ -38,6 +39,13 @@ export default function TradeBlotter() {
                   <td>{t.price.toFixed(2)}</td>
                   <td>{t.buy_order_id}</td>
                   <td>{t.sell_order_id}</td>
+                  <td>
+                    <span
+                      className={`badge ${t.affirmation_status === "AFFIRMED" ? "badge-confirmed" : "badge-pending"}`}
+                    >
+                      {t.affirmation_status === "AFFIRMED" ? "AFFIRMED" : "PENDING"}
+                    </span>
+                  </td>
                   <td>{new Date(t.traded_at).toLocaleString()}</td>
                 </tr>
               ))

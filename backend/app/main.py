@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.migrations import run_migrations
-from app.routers import accounts, orders, settlement, trades
+from app.routers import accounts, audit, ops, orders, settlement, trades
 
 app = FastAPI(title="Sandton Exchange", version="1.0.0")
 
@@ -32,3 +32,5 @@ app.include_router(orders.router, prefix="/api/v1")
 app.include_router(trades.router, prefix="/api/v1")
 app.include_router(accounts.router, prefix="/api/v1")
 app.include_router(settlement.router, prefix="/api/v1")
+app.include_router(audit.router, prefix="/api/v1")
+app.include_router(ops.router, prefix="/api/v1")

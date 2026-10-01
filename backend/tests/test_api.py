@@ -1,6 +1,18 @@
 from app.models import Account, AuditEvent
 
 
+def _affirm_all_trades(client):
+    pending = client.get(
+        "/api/v1/trades/pending-affirmation",
+        headers={"X-Actor-Role": "ops"},
+    )
+    for trade in pending.json():
+        client.post(
+            f"/api/v1/trades/{trade['id']}/affirm",
+            headers={"X-Actor-Role": "ops"},
+        )
+
+
 def test_health(client):
     resp = client.get("/health")
     assert resp.status_code == 200
@@ -99,11 +111,14 @@ def test_settlement_confirm_ops_only(client, seed_data, db):
     )
     assert batch.status_code == 403
 
+    _affirm_all_trades(client)
+
     batch = client.post(
         "/api/v1/settlement/batch",
         headers={"X-Actor-Role": "ops"},
     )
     assert batch.status_code == 200
+    assert len(batch.json()) >= 1
     settlement_id = batch.json()[0]["id"]
 
     cash_before = db.query(Account).filter_by(id=a.id).first().cash_balance
@@ -172,6 +187,8 @@ def test_portfolio(client, seed_data, db):
         headers={"X-Actor-Role": "trader"},
     )
 
+    _affirm_all_trades(client)
+
     batch = client.post(
         "/api/v1/settlement/batch",
         headers={"X-Actor-Role": "ops"},
@@ -191,3 +208,55 @@ def test_portfolio(client, seed_data, db):
     assert data["account_id"] == a.id
     assert len(data["positions"]) == 1
     assert data["positions"][0]["qty"] == 10
+
+
+def test_trade_affirmation(client, seed_data):
+    inst = seed_data["instrument"]
+    a = seed_data["trader_a"]
+    b = seed_data["trader_b"]
+
+    client.post(
+        "/api/v1/orders",
+        json={
+            "account_id": b.id,
+            "instrument_id": inst.id,
+            "side": "SELL",
+            "qty": 10,
+            "price": 100.0,
+        },
+        headers={"X-Actor-Role": "trader"},
+    )
+    client.post(
+        "/api/v1/orders",
+        json={
+            "account_id": a.id,
+            "instrument_id": inst.id,
+            "side": "BUY",
+            "qty": 10,
+            "price": 100.0,
+        },
+        headers={"X-Actor-Role": "trader"},
+    )
+
+    pending = client.get(
+        "/api/v1/trades/pending-affirmation",
+        headers={"X-Actor-Role": "ops"},
+    )
+    assert pending.status_code == 200
+    assert len(pending.json()) == 1
+
+    affirm = client.post(
+        f"/api/v1/trades/{pending.json()[0]['id']}/affirm",
+        headers={"X-Actor-Role": "ops"},
+    )
+    assert affirm.status_code == 200
+    assert affirm.json()["affirmation_status"] == "AFFIRMED"
+
+
+def test_audit_and_dashboard(client, seed_data):
+    resp = client.get("/api/v1/audit", headers={"X-Actor-Role": "trader"})
+    assert resp.status_code == 200
+
+    dash = client.get("/api/v1/ops/dashboard", headers={"X-Actor-Role": "trader"})
+    assert dash.status_code == 200
+    assert "pending_affirmations" in dash.json()

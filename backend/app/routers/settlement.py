@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.deps import get_actor_role, require_ops
 from app.models import Settlement, SettlementStatus, Trade
-from app.schemas import SettlementOut, TradeOut
+from app.schemas import BulkConfirmRequest, SettlementOut, TradeOut
 from app.services import confirm_settlement, create_settlement_batch
 
 router = APIRouter(prefix="/settlement", tags=["settlement"])
@@ -19,6 +19,9 @@ def _trade_out(trade: Trade) -> TradeOut:
         qty=trade.qty,
         price=trade.price,
         traded_at=trade.traded_at,
+        affirmation_status=trade.affirmation_status,
+        affirmed_by=trade.affirmed_by,
+        affirmed_at=trade.affirmed_at,
         ticker=trade.instrument.ticker if trade.instrument else None,
     )
 
@@ -69,6 +72,38 @@ def batch_settlements(
         if loaded:
             result.append(_settlement_out(loaded))
     return result
+
+
+@router.post("/confirm-bulk", response_model=list[SettlementOut])
+def confirm_bulk(
+    body: BulkConfirmRequest,
+    db: Session = Depends(get_db),
+    actor_role: str = Depends(require_ops),
+):
+    results: list[SettlementOut] = []
+    for settlement_id in body.settlement_ids:
+        settlement = (
+            db.query(Settlement)
+            .options(joinedload(Settlement.trade).joinedload(Trade.instrument))
+            .filter(Settlement.id == settlement_id)
+            .first()
+        )
+        if not settlement:
+            raise HTTPException(
+                status_code=404, detail=f"Settlement {settlement_id} not found"
+            )
+        if settlement.status != SettlementStatus.PENDING:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Settlement {settlement_id} is not pending",
+            )
+        try:
+            confirm_settlement(db, settlement, actor_role)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        results.append(_settlement_out(settlement))
+    db.commit()
+    return results
 
 
 @router.post("/{settlement_id}/confirm", response_model=SettlementOut)
