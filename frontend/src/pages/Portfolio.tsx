@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { api, type Account, type Portfolio } from "../lib/api";
+import { Link } from "react-router-dom";
+import { api, formatZAR, type Account, type Portfolio } from "../lib/api";
 
 export default function PortfolioPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -31,9 +32,24 @@ export default function PortfolioPage() {
     return () => clearInterval(id);
   }, [accountId]);
 
+  const positionsValue =
+    portfolio?.positions.reduce((s, p) => s + p.qty * p.avg_price, 0) ?? 0;
+  const totalValue = (portfolio?.cash_balance ?? 0) + positionsValue;
+
   return (
-    <div className="panel">
-      <h2>Portfolio</h2>
+    <div>
+      <div className="page-header">
+        <div>
+          <h2>Portfolio</h2>
+          <p className="page-subtitle">
+            Holdings update after settlement confirmation (T+3 legacy)
+          </p>
+        </div>
+        <Link to="/order-entry" className="btn btn-primary">
+          Trade
+        </Link>
+      </div>
+
       <div className="form-row">
         <label>
           Account
@@ -49,43 +65,79 @@ export default function PortfolioPage() {
           </select>
         </label>
       </div>
-      {error && <p className="error">{error}</p>}
+
+      {error && <div className="banner banner-error">{error}</div>}
+
       {portfolio && (
         <>
-          <p>
-            <strong>Cash Balance:</strong> R
-            {portfolio.cash_balance.toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-            })}
-          </p>
-          <p style={{ fontSize: "0.85rem", color: "#666" }}>
-            Positions update only after settlement confirmation (T+3 legacy
-            behaviour).
-          </p>
-          <table>
-            <thead>
-              <tr>
-                <th>Ticker</th>
-                <th>Qty</th>
-                <th>Avg Price (ZAR)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {portfolio.positions.length === 0 ? (
+          <div className="stat-grid">
+            <div className="stat-card accent-ok">
+              <span className="stat-value">{formatZAR(portfolio.cash_balance)}</span>
+              <span className="stat-label">Cash Balance</span>
+            </div>
+            <div className="stat-card">
+              <span className="stat-value">{formatZAR(positionsValue)}</span>
+              <span className="stat-label">Positions Value</span>
+            </div>
+            <div className="stat-card">
+              <span className="stat-value">{formatZAR(totalValue)}</span>
+              <span className="stat-label">Total (Est.)</span>
+            </div>
+            <div className="stat-card">
+              <span className="stat-value">{portfolio.positions.length}</span>
+              <span className="stat-label">Holdings</span>
+            </div>
+          </div>
+
+          <div className="panel">
+            <h3>Positions — {portfolio.account_name}</h3>
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <td colSpan={3}>No settled positions</td>
+                  <th>Ticker</th>
+                  <th>Qty</th>
+                  <th>Avg Price</th>
+                  <th>Market Value</th>
+                  <th>Weight</th>
                 </tr>
-              ) : (
-                portfolio.positions.map((p) => (
-                  <tr key={p.instrument_id}>
-                    <td>{p.ticker}</td>
-                    <td>{p.qty}</td>
-                    <td>{p.avg_price.toFixed(2)}</td>
+              </thead>
+              <tbody>
+                {portfolio.positions.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="empty-row">
+                      No settled positions —{" "}
+                      <Link to="/order-entry">place a trade</Link>
+                    </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  portfolio.positions.map((p) => {
+                    const mv = p.qty * p.avg_price;
+                    const weight =
+                      totalValue > 0 ? ((mv / totalValue) * 100).toFixed(1) : "0";
+                    return (
+                      <tr key={p.instrument_id}>
+                        <td>
+                          <span className="ticker-pill">{p.ticker}</span>
+                        </td>
+                        <td>{p.qty.toLocaleString()}</td>
+                        <td>{formatZAR(p.avg_price)}</td>
+                        <td>{formatZAR(mv)}</td>
+                        <td>
+                          <div className="weight-bar">
+                            <div
+                              className="weight-fill"
+                              style={{ width: `${weight}%` }}
+                            />
+                            <span>{weight}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
     </div>
