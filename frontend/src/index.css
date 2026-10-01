@@ -520,6 +520,40 @@ body {
   color: #065f46;
 }
 
+.automation-hint {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.row-break {
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.variance-bad {
+  color: var(--red);
+  font-weight: 600;
+}
+
+.statement-preview {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+
+.statement-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table.compact {
+  font-size: 0.85rem;
+}
+
 /* Toolbar */
 .toolbar {
   display: flex;

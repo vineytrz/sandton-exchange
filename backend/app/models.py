@@ -42,6 +42,35 @@ class AffirmationStatus(str, enum.Enum):
     AFFIRMED = "AFFIRMED"
 
 
+class OnboardingStatus(str, enum.Enum):
+    PENDING_REVIEW = "PENDING_REVIEW"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
+class CorporateActionType(str, enum.Enum):
+    DIVIDEND = "DIVIDEND"
+    SPLIT = "SPLIT"
+
+
+class CorporateActionStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    CONFIRMED = "CONFIRMED"
+    APPLIED = "APPLIED"
+
+
+class ExceptionSeverity(str, enum.Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+
+
+class ExceptionCategory(str, enum.Enum):
+    RETRY_SAFE = "RETRY_SAFE"
+    NEEDS_HUMAN = "NEEDS_HUMAN"
+    INFORMATIONAL = "INFORMATIONAL"
+
+
 class Account(Base):
     __tablename__ = "accounts"
 
@@ -64,6 +93,9 @@ class Instrument(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_price: Mapped[float] = mapped_column(Float, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), default="ZAR")
+    onboarding_status: Mapped[OnboardingStatus] = mapped_column(
+        Enum(OnboardingStatus), default=OnboardingStatus.APPROVED
+    )
 
     orders: Mapped[list["Order"]] = relationship(back_populates="instrument")
 
@@ -136,6 +168,8 @@ class Settlement(Base):
     )
     confirmed_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    fail_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    failed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     trade: Mapped["Trade"] = relationship(back_populates="settlement")
 
@@ -149,6 +183,98 @@ class AuditEvent(Base):
     action: Mapped[str] = mapped_column(String(50), nullable=False)
     actor: Mapped[str] = mapped_column(String(100), nullable=False)
     payload_json: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+
+
+class CustodianPosition(Base):
+    __tablename__ = "custodian_positions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id"), nullable=False)
+    instrument_id: Mapped[int] = mapped_column(
+        ForeignKey("instruments.id"), nullable=False
+    )
+    qty: Mapped[int] = mapped_column(Integer, nullable=False)
+    as_of_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class CustodianCash(Base):
+    __tablename__ = "custodian_cash"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id"), unique=True)
+    cash_balance: Mapped[float] = mapped_column(Float, nullable=False)
+    as_of_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class ReconBreak(Base):
+    __tablename__ = "recon_breaks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id"), nullable=False)
+    instrument_id: Mapped[int | None] = mapped_column(
+        ForeignKey("instruments.id"), nullable=True
+    )
+    break_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    internal_value: Mapped[float] = mapped_column(Float, nullable=False)
+    custodian_value: Mapped[float] = mapped_column(Float, nullable=False)
+    variance: Mapped[float] = mapped_column(Float, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="OPEN")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+
+
+class RiskLimit(Base):
+    __tablename__ = "risk_limits"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int | None] = mapped_column(
+        ForeignKey("accounts.id"), nullable=True
+    )
+    instrument_id: Mapped[int | None] = mapped_column(
+        ForeignKey("instruments.id"), nullable=True
+    )
+    limit_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    threshold: Mapped[float] = mapped_column(Float, nullable=False)
+    description: Mapped[str] = mapped_column(String(200), nullable=False)
+
+
+class CorporateAction(Base):
+    __tablename__ = "corporate_actions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    instrument_id: Mapped[int] = mapped_column(
+        ForeignKey("instruments.id"), nullable=False
+    )
+    action_type: Mapped[CorporateActionType] = mapped_column(
+        Enum(CorporateActionType), nullable=False
+    )
+    ex_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    pay_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    amount_per_share: Mapped[float | None] = mapped_column(Float, nullable=True)
+    split_ratio: Mapped[float | None] = mapped_column(Float, nullable=True)
+    status: Mapped[CorporateActionStatus] = mapped_column(
+        Enum(CorporateActionStatus), default=CorporateActionStatus.PENDING
+    )
+
+    instrument: Mapped["Instrument"] = relationship()
+
+
+class ComplianceAlert(Base):
+    __tablename__ = "compliance_alerts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    alert_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    severity: Mapped[ExceptionSeverity] = mapped_column(
+        Enum(ExceptionSeverity), nullable=False
+    )
+    entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    entity_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="OPEN")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )

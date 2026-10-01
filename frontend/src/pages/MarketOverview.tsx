@@ -12,7 +12,7 @@ export default function MarketOverview() {
       <div className="page-header">
         <div>
           <h2>Market Overview</h2>
-          <p className="page-subtitle">JSE-listed instruments · ZAR denominated</p>
+          <p className="page-subtitle">Listed instruments · ZAR denominated</p>
         </div>
       </div>
 

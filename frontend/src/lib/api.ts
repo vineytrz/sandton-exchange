@@ -188,7 +188,130 @@ export const api = {
     return request<AuditEvent[]>(`/api/v1/audit${qs ? `?${qs}` : ""}`);
   },
   getOpsDashboard: () => request<OpsDashboard>("/api/v1/ops/dashboard"),
+
+  getExceptions: () => request<ExceptionItem[]>("/api/v1/exceptions"),
+  getReconBreaks: () => request<ReconBreak[]>("/api/v1/recon/breaks"),
+  runRecon: () => request<{ breaks_found: number }>("/api/v1/recon/run", { method: "POST" }),
+  getSettlementFails: () => request<SettlementFail[]>("/api/v1/settlement/fails"),
+  failSettlement: (id: number, reason: string) =>
+    request(`/api/v1/settlement/${id}/fail`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
+  getComplianceAlerts: () => request<ComplianceAlert[]>("/api/v1/compliance/alerts"),
+  runComplianceScan: () =>
+    request<{ alerts_found: number }>("/api/v1/compliance/scan", { method: "POST" }),
+  getRiskLimits: () => request<RiskLimit[]>("/api/v1/risk/limits"),
+  getCorporateActions: () => request<CorporateAction[]>("/api/v1/corporate-actions"),
+  confirmCorporateAction: (id: number) =>
+    request(`/api/v1/corporate-actions/${id}/confirm`, { method: "POST" }),
+  applyCorporateAction: (id: number) =>
+    request(`/api/v1/corporate-actions/${id}/apply`, { method: "POST" }),
+  getAccountStatement: (accountId: number) =>
+    request<AccountStatement>(`/api/v1/accounts/${accountId}/statement`),
+  getEodReport: () => request<EodReport>("/api/v1/reporting/eod"),
+  getPendingInstruments: () => request<PendingInstrument[]>("/api/v1/instruments/pending"),
+  onboardInstrument: (data: { ticker: string; name: string; last_price: number }) =>
+    request("/api/v1/instruments/onboard", { method: "POST", body: JSON.stringify(data) }),
+  approveInstrument: (id: number) =>
+    request(`/api/v1/instruments/${id}/approve`, { method: "POST" }),
+  rejectInstrument: (id: number) =>
+    request(`/api/v1/instruments/${id}/reject`, { method: "POST" }),
 };
+
+export interface ExceptionItem {
+  id: string;
+  type: string;
+  severity: string;
+  category: string;
+  entity_type: string;
+  entity_id: number;
+  description: string;
+  created_at: string;
+}
+
+export interface ReconBreak {
+  id: number;
+  account_id: number;
+  instrument_id: number | null;
+  break_type: string;
+  internal_value: number;
+  custodian_value: number;
+  variance: number;
+  status: string;
+  created_at: string;
+}
+
+export interface SettlementFail {
+  settlement_id: number;
+  trade_id: number;
+  fail_type: string;
+  reason: string;
+  settlement_date: string;
+  ticker: string | null;
+  qty: number | null;
+  price: number | null;
+  status: string;
+}
+
+export interface ComplianceAlert {
+  id: number;
+  alert_type: string;
+  severity: string;
+  entity_type: string;
+  entity_id: number;
+  description: string;
+  created_at: string;
+}
+
+export interface RiskLimit {
+  id: number;
+  account_id: number | null;
+  instrument_id: number | null;
+  limit_type: string;
+  threshold: number;
+  description: string;
+}
+
+export interface CorporateAction {
+  id: number;
+  instrument_id: number;
+  ticker: string | null;
+  action_type: string;
+  ex_date: string;
+  pay_date: string;
+  amount_per_share: number | null;
+  split_ratio: number | null;
+  status: string;
+}
+
+export interface AccountStatement {
+  account_id: number;
+  account_name: string;
+  statement_date: string;
+  cash_balance: number;
+  positions: Position[];
+  recent_trades: { id: number; ticker: string | null; qty: number; price: number; traded_at: string }[];
+}
+
+export interface EodReport {
+  report_date: string;
+  total_accounts: number;
+  trades_today: number;
+  open_orders: number;
+  pending_settlements: number;
+  open_recon_breaks: number;
+  open_compliance_alerts: number;
+  pending_affirmations: number;
+}
+
+export interface PendingInstrument {
+  id: number;
+  ticker: string;
+  name: string;
+  last_price: number;
+  onboarding_status: string;
+}
 
 export function formatZAR(amount: number): string {
   return `R\u00a0${amount.toLocaleString("en-ZA", {

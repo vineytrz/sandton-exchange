@@ -15,6 +15,14 @@ import OrderEntry from "./pages/OrderEntry";
 import Portfolio from "./pages/Portfolio";
 import TradeAffirmation from "./pages/TradeAffirmation";
 import TradeBlotter from "./pages/TradeBlotter";
+import ExceptionQueue from "./pages/ExceptionQueue";
+import Reconciliation from "./pages/Reconciliation";
+import SettlementFails from "./pages/SettlementFails";
+import CorporateActions from "./pages/CorporateActions";
+import RiskLimits from "./pages/RiskLimits";
+import Surveillance from "./pages/Surveillance";
+import EodReporting from "./pages/EodReporting";
+import InstrumentOnboarding from "./pages/InstrumentOnboarding";
 
 export default function App() {
   const { role, setRole } = useRole();
@@ -28,7 +36,7 @@ export default function App() {
       <header className="app-header">
         <div className="header-brand">
           <h1>Sandton Exchange</h1>
-          <span className="header-tagline">JSE Legacy Back Office</span>
+          <span className="header-tagline">Back Office</span>
         </div>
         <div className="header-meta">
           <span className="header-session">Session: SAST</span>
@@ -51,6 +59,14 @@ export default function App() {
             <Route path="/affirmation" element={<TradeAffirmation />} />
             <Route path="/settlement" element={<BackOfficeSettlement />} />
             <Route path="/audit" element={<AuditLog />} />
+            <Route path="/exceptions" element={<ExceptionQueue />} />
+            <Route path="/recon" element={<Reconciliation />} />
+            <Route path="/settlement-fails" element={<SettlementFails />} />
+            <Route path="/corporate-actions" element={<CorporateActions />} />
+            <Route path="/risk-limits" element={<RiskLimits />} />
+            <Route path="/surveillance" element={<Surveillance />} />
+            <Route path="/reporting" element={<EodReporting />} />
+            <Route path="/onboarding" element={<InstrumentOnboarding />} />
             <Route path="/accounts" element={<Accounts />} />
           </Routes>
         </main>

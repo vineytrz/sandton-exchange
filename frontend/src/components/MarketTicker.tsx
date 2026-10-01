@@ -10,7 +10,6 @@ export default function MarketTicker() {
 
   return (
     <div className="market-ticker">
-      <span className="ticker-label">JSE</span>
       <div className="ticker-scroll">
         {instruments.map((i) => (
           <span key={i.ticker} className="ticker-item">

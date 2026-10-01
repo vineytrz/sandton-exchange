@@ -11,6 +11,7 @@ from app.models import (
     AffirmationStatus,
     AuditEvent,
     Instrument,
+    OnboardingStatus,
     Order,
     OrderSide,
     OrderStatus,
@@ -45,11 +46,20 @@ def _engine_to_db_status(engine_status: EngineStatus) -> OrderStatus:
     return mapping[engine_status]
 
 
-def validate_order(db: Session, order: Order) -> bool:
+def validate_order(db: Session, order: Order, actor: str = "system") -> bool:
+    from app.platform_services import check_risk_limits
+
     account = db.get(Account, order.account_id)
     instrument = db.get(Instrument, order.instrument_id)
     if not account or not instrument:
         order.status = OrderStatus.REJECTED
+        return False
+    if instrument.onboarding_status != OnboardingStatus.APPROVED:
+        order.status = OrderStatus.REJECTED
+        log_event(
+            db, "order", order.id, "order_rejected", actor,
+            {"reason": "instrument_not_approved", "ticker": instrument.ticker},
+        )
         return False
     if order.qty <= 0 or order.price <= 0:
         order.status = OrderStatus.REJECTED
@@ -59,6 +69,15 @@ def validate_order(db: Session, order: Order) -> bool:
         if account.cash_balance < required:
             order.status = OrderStatus.REJECTED
             return False
+
+    ok, reason = check_risk_limits(db, order)
+    if not ok:
+        order.status = OrderStatus.REJECTED
+        log_event(
+            db, "order", order.id, "order_rejected", actor,
+            {"reason": "risk_limit_breach", "detail": reason},
+        )
+        return False
     return True
 
 

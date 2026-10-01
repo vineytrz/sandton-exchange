@@ -42,7 +42,7 @@ export default function PortfolioPage() {
         <div>
           <h2>Portfolio</h2>
           <p className="page-subtitle">
-            Holdings update after settlement confirmation (T+3 legacy)
+            Holdings update after settlement confirmation (T+3)
           </p>
         </div>
         <Link to="/order-entry" className="btn btn-primary">

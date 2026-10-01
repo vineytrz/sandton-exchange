@@ -60,7 +60,7 @@ def create_order(
         },
     )
 
-    if not validate_order(db, order):
+    if not validate_order(db, order, actor_role):
         log_event(
             db,
             "order",
