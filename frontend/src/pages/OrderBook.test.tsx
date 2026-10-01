@@ -21,9 +21,9 @@ describe("OrderBook", () => {
     render(<OrderBook />);
 
     expect(await screen.findByText("Order Book")).toBeInTheDocument();
-    expect(screen.getByText("Bids")).toBeInTheDocument();
-    expect(screen.getByText("Asks")).toBeInTheDocument();
-    expect(screen.getByText("2840.00")).toBeInTheDocument();
-    expect(screen.getByText("2860.00")).toBeInTheDocument();
+    expect(await screen.findByText("Bids")).toBeInTheDocument();
+    expect(await screen.findByText("Asks")).toBeInTheDocument();
+    expect(await screen.findByText("2840.00")).toBeInTheDocument();
+    expect(await screen.findByText("2860.00")).toBeInTheDocument();
   });
 });
